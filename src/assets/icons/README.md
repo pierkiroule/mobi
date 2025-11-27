@@ -1,0 +1,1 @@
+Placeholders for role icons

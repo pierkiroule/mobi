@@ -1,0 +1,28 @@
+:root {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: #0c0c0f;
+  color: #f4f4f9;
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(138, 180, 255, 0.06), transparent 25%),
+    radial-gradient(circle at 80% 10%, rgba(255, 138, 255, 0.06), transparent 20%),
+    #0c0c0f;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}
