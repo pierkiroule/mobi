@@ -156,7 +156,14 @@ export default function App() {
 
       <section className="panel">
         <div className="video-wrapper">
-          <video ref={videoRef} className="preview" playsInline muted />
+          <video
+            ref={videoRef}
+            className="preview"
+            playsInline
+            muted
+            autoPlay
+            aria-label="Aperçu caméra"
+          />
           <canvas ref={canvasRef} className="overlay" width={480} height={360} />
         </div>
         <div className="metrics">
