@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AudioEngine from "./logic/AudioEngine";
 import FaceTracker from "./logic/FaceTracker";
+import Ml5Tracker from "./logic/Ml5Tracker";
 
 const patterns = [
   {
@@ -74,6 +75,7 @@ export default function App() {
   );
   const [samples, setSamples] = useState([null, null, null]);
   const [view, setView] = useState("test");
+  const [backend, setBackend] = useState("mediapipe");
 
   const resetActive = useMemo(
     () => patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {}),
@@ -91,7 +93,8 @@ export default function App() {
     }
 
     if (!videoRef.current) return undefined;
-    const tracker = new FaceTracker(videoRef.current, canvasRef.current, (results) => {
+    const TrackerClass = backend === "ml5" ? Ml5Tracker : FaceTracker;
+    const tracker = new TrackerClass(videoRef.current, canvasRef.current, (results) => {
       const firstFace = results?.multiFaceLandmarks?.[0];
       if (!firstFace) {
         setActivePatterns(resetActive);
@@ -113,12 +116,16 @@ export default function App() {
       .then(() => {
         trackerRef.current = tracker;
         setFaceReady(true);
-        setStatus("Camera + FaceMesh prêts");
+        setStatus(
+          backend === "ml5"
+            ? "Camera + ml5.js Facemesh prêts"
+            : "Camera + MediaPipe FaceMesh prêts"
+        );
       })
       .catch((error) => setStatus(error.message));
 
     return () => tracker.stop();
-  }, [resetActive, view]);
+  }, [backend, resetActive, view]);
 
   useEffect(() => {
     patterns.forEach((pattern, index) => {
@@ -247,6 +254,22 @@ export default function App() {
                   {audioReady ? "Audio actif" : "Activer l'audio"}
                 </button>
                 <span className="status">{status}</span>
+              </div>
+              <div className="backend-toggle" role="group" aria-label="Choix du tracker">
+                <button
+                  type="button"
+                  className={`chip ${backend === "mediapipe" ? "active" : ""}`}
+                  onClick={() => setBackend("mediapipe")}
+                >
+                  MediaPipe FaceMesh
+                </button>
+                <button
+                  type="button"
+                  className={`chip ${backend === "ml5" ? "active" : ""}`}
+                  onClick={() => setBackend("ml5")}
+                >
+                  ml5.js facemesh
+                </button>
               </div>
             </div>
           </header>

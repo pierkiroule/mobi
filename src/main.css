@@ -116,6 +116,28 @@ p {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.backend-toggle {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f4f6fb;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip.active {
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(120deg, rgba(255, 200, 120, 0.14), rgba(127, 217, 255, 0.18));
+}
+
 .panel {
   display: grid;
   grid-template-columns: 1fr;
