@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import AudioEngine from "./logic/AudioEngine";
 import FaceTracker from "./logic/FaceTracker";
 import Ml5Tracker from "./logic/Ml5Tracker";
+import P5FaceTest from "./logic/P5FaceTest";
 
 const patterns = [
   {
@@ -60,7 +61,9 @@ export default function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const testVideoRef = useRef(null);
+  const p5ContainerRef = useRef(null);
   const trackerRef = useRef(null);
+  const p5Ref = useRef(null);
   const audioRef = useRef(new AudioEngine());
   const testStreamRef = useRef(null);
 
@@ -69,6 +72,8 @@ export default function App() {
   const [faceReady, setFaceReady] = useState(false);
   const [testStatus, setTestStatus] = useState("Flux en attente de lancement");
   const [isTesting, setIsTesting] = useState(false);
+  const [p5Status, setP5Status] = useState("Flux p5 en attente");
+  const [isP5Running, setIsP5Running] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [activePatterns, setActivePatterns] = useState(() =>
     patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
@@ -144,6 +149,11 @@ export default function App() {
     setIsTesting(false);
   };
 
+  const stopP5 = () => {
+    p5Ref.current?.stop?.();
+    setIsP5Running(false);
+  };
+
   const handleCameraTest = async () => {
     if (isTesting) {
       stopCameraTest();
@@ -170,7 +180,20 @@ export default function App() {
     }
   };
 
-  useEffect(() => () => stopCameraTest(), []);
+  useEffect(
+    () => () => {
+      stopCameraTest();
+      stopP5();
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (view !== "p5") {
+      stopP5();
+      setP5Status("Flux p5 en attente");
+    }
+  }, [view]);
 
   const handleAudioStart = async () => {
     try {
@@ -191,6 +214,27 @@ export default function App() {
     await audioRef.current.loadSample(slot, file);
   };
 
+  const handleP5Click = async () => {
+    if (isP5Running) {
+      stopP5();
+      setP5Status("Flux arrêté");
+      return;
+    }
+
+    if (!p5Ref.current) {
+      p5Ref.current = new P5FaceTest(setP5Status);
+    }
+
+    try {
+      setP5Status("Demande caméra...");
+      await p5Ref.current.start(p5ContainerRef.current);
+      setIsP5Running(true);
+    } catch (error) {
+      setIsP5Running(false);
+      setP5Status(error.message || "Erreur p5 + FaceMesh");
+    }
+  };
+
   return (
     <div className="layout">
       <div className="tabs">
@@ -208,7 +252,40 @@ export default function App() {
         >
           Tracking + audio
         </button>
+        <button
+          className={`tab ${view === "p5" ? "active" : ""}`}
+          type="button"
+          onClick={() => setView("p5")}
+        >
+          Test p5 + FaceMesh
+        </button>
       </div>
+
+      {view === "p5" && (
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">P5 + MediaPipe</p>
+              <h2>Test flux + landmarks</h2>
+              <p className="muted">
+                Start. Voir si la cam frontale répond. Les points verts doivent coller au visage.
+              </p>
+            </div>
+            <button className="primary" onClick={handleP5Click}>
+              {isP5Running ? "Stop" : "Lancer"}
+            </button>
+          </div>
+          <div className="video-wrapper p5-wrapper">
+            <div ref={p5ContainerRef} className="p5-canvas" aria-label="Canvas p5 FaceMesh" />
+          </div>
+          <p className="status test-status">{p5Status}</p>
+          <ul className="bullet-list">
+            <li>Caméra OK</li>
+            <li>MediaPipe OK</li>
+            <li>Landmarks alignés</li>
+          </ul>
+        </section>
+      )}
 
       {view === "test" && (
         <section className="panel">
