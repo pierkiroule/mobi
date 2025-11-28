@@ -73,6 +73,7 @@ export default function App() {
     patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
   );
   const [samples, setSamples] = useState([null, null, null]);
+  const [view, setView] = useState("test");
 
   const resetActive = useMemo(
     () => patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {}),
@@ -80,6 +81,15 @@ export default function App() {
   );
 
   useEffect(() => {
+    if (view !== "tracker") {
+      trackerRef.current?.stop?.();
+      setMetrics(null);
+      setActivePatterns(resetActive);
+      setFaceReady(false);
+      setStatus("Tracking en pause");
+      return undefined;
+    }
+
     if (!videoRef.current) return undefined;
     const tracker = new FaceTracker(videoRef.current, canvasRef.current, (results) => {
       const firstFace = results?.multiFaceLandmarks?.[0];
@@ -108,7 +118,7 @@ export default function App() {
       .catch((error) => setStatus(error.message));
 
     return () => tracker.stop();
-  }, [resetActive]);
+  }, [resetActive, view]);
 
   useEffect(() => {
     patterns.forEach((pattern, index) => {
@@ -176,115 +186,140 @@ export default function App() {
 
   return (
     <div className="layout">
-      <section className="panel">
-        <div className="video-wrapper test-wrapper">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">Test caméra</p>
-              <h2>Vérifiez le flux avant le tracking</h2>
-              <p className="muted">
-                Lancez le flux caméra frontale pour confirmer que la vidéo fonctionne avant d'activer le
-                tracking et l'audio.
-              </p>
-            </div>
-            <button className="primary" onClick={handleCameraTest}>
-              {isTesting ? "Arrêter le test" : "Lancer le test"}
-            </button>
-          </div>
-          <video
-            ref={testVideoRef}
-            className="preview"
-            playsInline
-            muted
-            autoPlay
-            aria-label="Aperçu de test caméra"
-          />
-          <p className="status test-status">{testStatus}</p>
-        </div>
-      </section>
+      <div className="tabs">
+        <button
+          className={`tab ${view === "test" ? "active" : ""}`}
+          type="button"
+          onClick={() => setView("test")}
+        >
+          Test caméra
+        </button>
+        <button
+          className={`tab ${view === "tracker" ? "active" : ""}`}
+          type="button"
+          onClick={() => setView("tracker")}
+        >
+          Tracking + audio
+        </button>
+      </div>
 
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Prototype</p>
-          <h1>Pad de samples piloté par le visage</h1>
-          <p className="muted">
-            Trois patterns simples (hochement, rotation, sourire) déclenchent trois boucles audio.
-            Importez vos samples, activez l&apos;audio, et laissez la caméra suivre votre visage.
-          </p>
-          <div className="inline-actions">
-            <button className="primary" onClick={handleAudioStart} disabled={audioReady}>
-              {audioReady ? "Audio actif" : "Activer l'audio"}
-            </button>
-            <span className="status">{status}</span>
-          </div>
-        </div>
-      </header>
-
-      <section className="panel">
-        <div className="video-wrapper">
-          <video
-            ref={videoRef}
-            className="preview"
-            playsInline
-            muted
-            autoPlay
-            aria-label="Aperçu caméra"
-          />
-          <canvas ref={canvasRef} className="overlay" width={480} height={360} />
-        </div>
-        <div className="metrics">
-          <h3>Métriques temps réel</h3>
-          {metrics ? (
-            <ul>
-              <li>Yaw (rotation): {metrics.yaw.toFixed(3)}</li>
-              <li>Pitch (inclinaison): {metrics.pitch.toFixed(3)}</li>
-              <li>Roll (inclinaison latérale): {metrics.roll.toFixed(3)}</li>
-              <li>Mouth width: {metrics.mouthWidth.toFixed(3)}</li>
-              <li>Ouverture: {metrics.mouthOpen.toFixed(3)}</li>
-            </ul>
-          ) : (
-            <p className="muted">Détection en cours...</p>
-          )}
-        </div>
-      </section>
-
-      <section className="grid">
-        {patterns.map((pattern, index) => (
-          <article key={pattern.id} className="card">
-            <div className="card-header">
+      {view === "test" && (
+        <section className="panel">
+          <div className="video-wrapper test-wrapper">
+            <div className="panel-header">
               <div>
-                <p className="eyebrow">Pattern #{index + 1}</p>
-                <h3>{pattern.title}</h3>
-                <p className="muted">{pattern.description}</p>
+                <p className="eyebrow">Test caméra</p>
+                <h2>Vérifiez le flux avant le tracking</h2>
+                <p className="muted">
+                  Lancez le flux caméra frontale pour confirmer que la vidéo fonctionne avant d'activer le
+                  tracking et l'audio.
+                </p>
               </div>
-              <span
-                className="dot"
-                style={{
-                  background: activePatterns[pattern.id] ? pattern.color : "rgba(255,255,255,0.12)",
-                  boxShadow: activePatterns[pattern.id]
-                    ? `0 0 12px ${pattern.color}`
-                    : "none",
-                }}
-                aria-label={activePatterns[pattern.id] ? "Actif" : "Inactif"}
-              />
+              <button className="primary" onClick={handleCameraTest}>
+                {isTesting ? "Arrêter le test" : "Lancer le test"}
+              </button>
             </div>
-            <label className="upload">
-              <span>{samples[index] || "Importer un sample (wav/mp3)"}</span>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={(e) => handleSampleChange(index, e.target.files?.[0])}
-              />
-            </label>
-            {!audioReady && <p className="muted">Activez l&apos;audio avant de jouer les boucles.</p>}
-            {faceReady && (
-              <p className="hint">
-                Se déclenche dès que le pattern est détecté. Arrêt automatique lorsque le mouvement cesse.
+            <video
+              ref={testVideoRef}
+              className="preview"
+              playsInline
+              muted
+              autoPlay
+              aria-label="Aperçu de test caméra"
+            />
+            <p className="status test-status">{testStatus}</p>
+          </div>
+        </section>
+      )}
+
+      {view === "tracker" && (
+        <>
+          <header className="hero">
+            <div>
+              <p className="eyebrow">Prototype</p>
+              <h1>Pad de samples piloté par le visage</h1>
+              <p className="muted">
+                Trois patterns simples (hochement, rotation, sourire) déclenchent trois boucles audio.
+                Importez vos samples, activez l&apos;audio, et laissez la caméra suivre votre visage.
               </p>
-            )}
-          </article>
-        ))}
-      </section>
+              <div className="inline-actions">
+                <button className="primary" onClick={handleAudioStart} disabled={audioReady}>
+                  {audioReady ? "Audio actif" : "Activer l'audio"}
+                </button>
+                <span className="status">{status}</span>
+              </div>
+            </div>
+          </header>
+
+          <section className="panel">
+            <div className="video-wrapper">
+              <video
+                ref={videoRef}
+                className="preview"
+                playsInline
+                muted
+                autoPlay
+                aria-label="Aperçu caméra"
+              />
+              <canvas ref={canvasRef} className="overlay" width={480} height={360} />
+            </div>
+            <div className="metrics">
+              <h3>Métriques temps réel</h3>
+              {metrics ? (
+                <ul>
+                  <li>Yaw (rotation): {metrics.yaw.toFixed(3)}</li>
+                  <li>Pitch (inclinaison): {metrics.pitch.toFixed(3)}</li>
+                  <li>Roll (inclinaison latérale): {metrics.roll.toFixed(3)}</li>
+                  <li>Mouth width: {metrics.mouthWidth.toFixed(3)}</li>
+                  <li>Ouverture: {metrics.mouthOpen.toFixed(3)}</li>
+                </ul>
+              ) : (
+                <p className="muted">Détection en cours...</p>
+              )}
+            </div>
+          </section>
+
+          <section className="grid">
+            {patterns.map((pattern, index) => (
+              <article key={pattern.id} className="card">
+                <div className="card-header">
+                  <div>
+                    <p className="eyebrow">Pattern #{index + 1}</p>
+                    <h3>{pattern.title}</h3>
+                    <p className="muted">{pattern.description}</p>
+                  </div>
+                  <span
+                    className="dot"
+                    style={{
+                      background: activePatterns[pattern.id]
+                        ? pattern.color
+                        : "rgba(255,255,255,0.12)",
+                      boxShadow: activePatterns[pattern.id]
+                        ? `0 0 12px ${pattern.color}`
+                        : "none",
+                    }}
+                    aria-label={activePatterns[pattern.id] ? "Actif" : "Inactif"}
+                  />
+                </div>
+                <label className="upload">
+                  <span>{samples[index] || "Importer un sample (wav/mp3)"}</span>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => handleSampleChange(index, e.target.files?.[0])}
+                  />
+                </label>
+                {!audioReady && <p className="muted">Activez l&apos;audio avant de jouer les boucles.</p>}
+                {faceReady && (
+                  <p className="hint">
+                    Se déclenche dès que le pattern est détecté. Arrêt automatique lorsque le mouvement cesse.
+                  </p>
+                )}
+              </article>
+            ))}
+          </section>
+        </>
+      )}
     </div>
   );
 }

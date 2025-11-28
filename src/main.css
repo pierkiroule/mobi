@@ -35,6 +35,32 @@ textarea {
   gap: 18px;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #f4f6fb;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab.active {
+  background: linear-gradient(120deg, rgba(127, 217, 255, 0.18), rgba(114, 245, 189, 0.22));
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
 .hero {
   padding: 22px 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
