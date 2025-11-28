@@ -292,6 +292,12 @@ export default function App() {
 
   return (
     <div className="layout">
+      <div className="topline">
+        <p className="muted">Test caméra · Tracking + audio · Test p5 + FaceMesh · Prototype</p>
+        <p className="muted small">
+          Pad de samples piloté par le visage. Trois patterns simples déclenchent trois boucles audio.
+        </p>
+      </div>
       <div className="tabs">
         <button
           className={`tab ${view === "test" ? "active" : ""}`}
