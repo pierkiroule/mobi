@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioEngine from "./logic/AudioEngine";
 import FaceTracker from "./logic/FaceTracker";
 import Ml5Tracker from "./logic/Ml5Tracker";
-import P5FaceTest from "./logic/P5FaceTest";
+import useFaceMesh from "./useFaceMesh";
+import P5Sketch from "./p5Sketch";
 
 const patterns = [
   {
@@ -62,8 +63,10 @@ export default function App() {
   const canvasRef = useRef(null);
   const testVideoRef = useRef(null);
   const p5ContainerRef = useRef(null);
+  const p5VideoRef = useRef(null);
   const trackerRef = useRef(null);
-  const p5Ref = useRef(null);
+  const p5SketchRef = useRef(null);
+  const p5LandmarksRef = useRef(null);
   const audioRef = useRef(new AudioEngine());
   const testStreamRef = useRef(null);
 
@@ -73,7 +76,8 @@ export default function App() {
   const [testStatus, setTestStatus] = useState("Flux en attente de lancement");
   const [isTesting, setIsTesting] = useState(false);
   const [p5Status, setP5Status] = useState("Flux p5 en attente");
-  const [isP5Running, setIsP5Running] = useState(false);
+  const [p5Enabled, setP5Enabled] = useState(false);
+  const [p5Landmarks, setP5Landmarks] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [activePatterns, setActivePatterns] = useState(() =>
     patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
@@ -85,6 +89,24 @@ export default function App() {
   const resetActive = useMemo(
     () => patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {}),
     []
+  );
+
+  useEffect(() => {
+    p5LandmarksRef.current = p5Landmarks;
+  }, [p5Landmarks]);
+
+  const handleP5Results = useCallback(
+    (landmarks) => {
+      p5LandmarksRef.current = landmarks;
+      setP5Landmarks(landmarks);
+      if (!p5Enabled) return;
+      setP5Status(
+        landmarks
+          ? "Caméra + FaceMesh OK (landmarks visibles)"
+          : "Caméra active, visage en attente"
+      );
+    },
+    [p5Enabled]
   );
 
   useEffect(() => {
@@ -132,6 +154,15 @@ export default function App() {
     return () => tracker.stop();
   }, [backend, resetActive, view]);
 
+  useFaceMesh(
+    p5VideoRef,
+    handleP5Results,
+    {
+      enabled: view === "p5" && p5Enabled,
+      onStatus: setP5Status,
+    }
+  );
+
   useEffect(() => {
     patterns.forEach((pattern, index) => {
       if (activePatterns[pattern.id]) {
@@ -149,9 +180,9 @@ export default function App() {
     setIsTesting(false);
   };
 
-  const stopP5 = () => {
-    p5Ref.current?.stop?.();
-    setIsP5Running(false);
+  const stopP5Sketch = () => {
+    p5SketchRef.current?.stop?.();
+    p5SketchRef.current = null;
   };
 
   const handleCameraTest = async () => {
@@ -183,17 +214,51 @@ export default function App() {
   useEffect(
     () => () => {
       stopCameraTest();
-      stopP5();
+      stopP5Sketch();
     },
     []
   );
 
   useEffect(() => {
     if (view !== "p5") {
-      stopP5();
+      setP5Enabled(false);
+      setP5Landmarks(null);
       setP5Status("Flux p5 en attente");
     }
   }, [view]);
+
+  useEffect(() => {
+    if (!p5Enabled) {
+      stopP5Sketch();
+      setP5Landmarks(null);
+      p5LandmarksRef.current = null;
+    }
+  }, [p5Enabled]);
+
+  useEffect(() => {
+    if (!(view === "p5" && p5Enabled)) {
+      stopP5Sketch();
+      return undefined;
+    }
+
+    if (!p5ContainerRef.current) return undefined;
+
+    if (!p5SketchRef.current) {
+      p5SketchRef.current = new P5Sketch(
+        p5VideoRef,
+        () => p5LandmarksRef.current
+      );
+      p5SketchRef.current
+        .start(p5ContainerRef.current)
+        .catch((error) => setP5Status(error.message || "Erreur p5 + FaceMesh"));
+    }
+
+    return () => {
+      if (view !== "p5" || !p5Enabled) {
+        stopP5Sketch();
+      }
+    };
+  }, [p5Enabled, view]);
 
   const handleAudioStart = async () => {
     try {
@@ -214,25 +279,15 @@ export default function App() {
     await audioRef.current.loadSample(slot, file);
   };
 
-  const handleP5Click = async () => {
-    if (isP5Running) {
-      stopP5();
+  const handleP5Toggle = () => {
+    if (p5Enabled) {
+      setP5Enabled(false);
       setP5Status("Flux arrêté");
       return;
     }
 
-    if (!p5Ref.current) {
-      p5Ref.current = new P5FaceTest(setP5Status);
-    }
-
-    try {
-      setP5Status("Demande caméra...");
-      await p5Ref.current.start(p5ContainerRef.current);
-      setIsP5Running(true);
-    } catch (error) {
-      setIsP5Running(false);
-      setP5Status(error.message || "Erreur p5 + FaceMesh");
-    }
+    setP5Status("Demande caméra...");
+    setP5Enabled(true);
   };
 
   return (
@@ -271,11 +326,19 @@ export default function App() {
                 Start. Voir si la cam frontale répond. Les points verts doivent coller au visage.
               </p>
             </div>
-            <button className="primary" onClick={handleP5Click}>
-              {isP5Running ? "Stop" : "Lancer"}
+            <button className="primary" onClick={handleP5Toggle}>
+              {p5Enabled ? "Stop" : "Lancer"}
             </button>
           </div>
           <div className="video-wrapper p5-wrapper">
+            <video
+              ref={p5VideoRef}
+              className="sr-video"
+              playsInline
+              muted
+              autoPlay
+              aria-hidden
+            />
             <div ref={p5ContainerRef} className="p5-canvas" aria-label="Canvas p5 FaceMesh" />
           </div>
           <p className="status test-status">{p5Status}</p>

@@ -187,6 +187,10 @@ p {
   display: block;
 }
 
+.sr-video {
+  display: none;
+}
+
 .test-status {
   margin: 10px 0 0;
   font-size: 14px;
