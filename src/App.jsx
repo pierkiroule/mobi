@@ -58,12 +58,16 @@ function computeMetrics(landmarks) {
 export default function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const testVideoRef = useRef(null);
   const trackerRef = useRef(null);
   const audioRef = useRef(new AudioEngine());
+  const testStreamRef = useRef(null);
 
   const [status, setStatus] = useState("Camera non initialisée");
   const [audioReady, setAudioReady] = useState(false);
   const [faceReady, setFaceReady] = useState(false);
+  const [testStatus, setTestStatus] = useState("Flux en attente de lancement");
+  const [isTesting, setIsTesting] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [activePatterns, setActivePatterns] = useState(() =>
     patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
@@ -116,6 +120,41 @@ export default function App() {
     });
   }, [activePatterns]);
 
+  const stopCameraTest = () => {
+    const tracks = testStreamRef.current?.getTracks?.();
+    tracks?.forEach((t) => t.stop());
+    testStreamRef.current = null;
+    setIsTesting(false);
+  };
+
+  const handleCameraTest = async () => {
+    if (isTesting) {
+      stopCameraTest();
+      setTestStatus("Flux arrêté");
+      return;
+    }
+
+    try {
+      setTestStatus("Demande d'autorisation...");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+      if (testVideoRef.current) {
+        testVideoRef.current.srcObject = stream;
+        await testVideoRef.current.play();
+      }
+      testStreamRef.current = stream;
+      setIsTesting(true);
+      setTestStatus("Flux caméra actif (caméra frontale)");
+    } catch (error) {
+      setTestStatus(error.message || "Impossible d'accéder à la caméra");
+      setIsTesting(false);
+    }
+  };
+
+  useEffect(() => () => stopCameraTest(), []);
+
   const handleAudioStart = async () => {
     try {
       await audioRef.current.init();
@@ -137,6 +176,33 @@ export default function App() {
 
   return (
     <div className="layout">
+      <section className="panel">
+        <div className="video-wrapper test-wrapper">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Test caméra</p>
+              <h2>Vérifiez le flux avant le tracking</h2>
+              <p className="muted">
+                Lancez le flux caméra frontale pour confirmer que la vidéo fonctionne avant d'activer le
+                tracking et l'audio.
+              </p>
+            </div>
+            <button className="primary" onClick={handleCameraTest}>
+              {isTesting ? "Arrêter le test" : "Lancer le test"}
+            </button>
+          </div>
+          <video
+            ref={testVideoRef}
+            className="preview"
+            playsInline
+            muted
+            autoPlay
+            aria-label="Aperçu de test caméra"
+          />
+          <p className="status test-status">{testStatus}</p>
+        </div>
+      </section>
+
       <header className="hero">
         <div>
           <p className="eyebrow">Prototype</p>

@@ -100,6 +100,14 @@ p {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .video-wrapper {
   position: relative;
   overflow: hidden;
@@ -111,6 +119,16 @@ p {
 .preview {
   width: 100%;
   display: block;
+}
+
+.test-wrapper .preview {
+  max-height: 280px;
+  object-fit: cover;
+}
+
+.test-status {
+  margin: 10px 0 0;
+  font-size: 14px;
 }
 
 .overlay {
