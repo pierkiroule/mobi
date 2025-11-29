@@ -10,18 +10,6 @@ function ensureMl5() {
   }
 }
 
-function normalizeLandmarks(prediction, video) {
-  const width = video.videoWidth || VIDEO_WIDTH;
-  const height = video.videoHeight || VIDEO_HEIGHT;
-  const scaledMesh = prediction?.scaledMesh;
-  if (!scaledMesh) return null;
-
-  return scaledMesh.map(([x, y, z]) => ({
-    x: x / width,
-    y: y / height,
-    z: z / width,
-  }));
-}
 
 export default class FaceTracker {
   constructor(videoElement, overlayCanvas, onResults) {
@@ -111,19 +99,51 @@ export default class FaceTracker {
     ensureMl5();
     await this.startCamera();
 
-    this.mesh = await window.ml5.facemesh(this.video, {
+    // ml5.js v1.0+ API
+    const options = {
       maxFaces: 1,
-      flipHorizontal: true,
+      refineLandmarks: true,
+      flipped: true,
+    };
+
+    this.mesh = await new Promise((resolve) => {
+      const model = window.ml5.faceMesh(options, () => {
+        resolve(model);
+      });
     });
 
-    this.mesh.on("predict", (predictions) => {
+    // Démarrer la boucle de détection
+    this._detectLoop();
+  }
+
+  _detectLoop() {
+    if (!this.mesh || !this.video) return;
+
+    this.mesh.detect(this.video, (predictions) => {
       const first = predictions?.[0];
-      const landmarks = normalizeLandmarks(first, this.video);
-      const results = landmarks ? { multiFaceLandmarks: [landmarks] } : { multiFaceLandmarks: [] };
+      const landmarks = this._normalizePrediction(first);
+      const results = landmarks 
+        ? { multiFaceLandmarks: [landmarks] } 
+        : { multiFaceLandmarks: [] };
 
       this.draw(results);
       this.onResults?.(results);
+
+      // Continuer la boucle
+      if (this.mesh) {
+        requestAnimationFrame(() => this._detectLoop());
+      }
     });
+  }
+
+  _normalizePrediction(prediction) {
+    if (!prediction?.keypoints) return null;
+    
+    return prediction.keypoints.map((kp) => ({
+      x: kp.x / VIDEO_WIDTH,
+      y: kp.y / VIDEO_HEIGHT,
+      z: (kp.z || 0) / VIDEO_WIDTH,
+    }));
   }
 
   draw(results) {
@@ -144,9 +164,7 @@ export default class FaceTracker {
   }
 
   stop() {
-    if (this.mesh?.removeAllListeners) {
-      this.mesh.removeAllListeners("predict");
-    }
+    // Arrêter la boucle de détection en mettant mesh à null
     this.mesh = null;
 
     if (this.stream) {
