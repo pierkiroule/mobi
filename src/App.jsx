@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioEngine from "./logic/AudioEngine";
 import FaceTracker from "./logic/FaceTracker";
 
@@ -8,21 +8,24 @@ const patterns = [
     title: "Hochement",
     description: "Inclinez la tête vers le bas (pitch)",
     color: "#6ee7b7",
-    check: (metrics) => metrics.pitch > 0.08,
+    activate: (metrics) => metrics.pitch > 0.08,
+    deactivate: (metrics) => metrics.pitch < 0.05,
   },
   {
     id: "turn",
     title: "Rotation",
     description: "Tournez la tête à gauche/droite (yaw)",
     color: "#93c5fd",
-    check: (metrics) => Math.abs(metrics.yaw) > 0.08,
+    activate: (metrics) => Math.abs(metrics.yaw) > 0.08,
+    deactivate: (metrics) => Math.abs(metrics.yaw) < 0.05,
   },
   {
     id: "smile",
     title: "Sourire",
     description: "Souriez largement (coin des lèvres)",
     color: "#fbbf24",
-    check: (metrics) => metrics.mouthWidth > 0.9 && metrics.mouthOpen < 0.45,
+    activate: (metrics) => metrics.mouthWidth > 0.9 && metrics.mouthOpen < 0.45,
+    deactivate: (metrics) => metrics.mouthWidth < 0.82 || metrics.mouthOpen > 0.55,
   },
 ];
 
@@ -65,6 +68,7 @@ export default function App() {
   const [audioReady, setAudioReady] = useState(false);
   const [faceReady, setFaceReady] = useState(false);
   const [metrics, setMetrics] = useState(null);
+  const smoothedMetricsRef = useRef(null);
   const [activePatterns, setActivePatterns] = useState(() =>
     patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
   );
@@ -75,6 +79,24 @@ export default function App() {
     []
   );
 
+  const smoothMetrics = useCallback((nextMetrics) => {
+    const previous = smoothedMetricsRef.current;
+    if (!previous) {
+      smoothedMetricsRef.current = nextMetrics;
+      return nextMetrics;
+    }
+
+    const alpha = 0.18;
+    const smoothed = Object.fromEntries(
+      Object.entries(nextMetrics).map(([key, value]) => [
+        key,
+        previous[key] + (value - previous[key]) * alpha,
+      ])
+    );
+    smoothedMetricsRef.current = smoothed;
+    return smoothed;
+  }, []);
+
   useEffect(() => {
     if (!videoRef.current) return undefined;
     const tracker = new FaceTracker(videoRef.current, canvasRef.current, (results) => {
@@ -84,11 +106,19 @@ export default function App() {
         setMetrics(null);
         return;
       }
-      const nextMetrics = computeMetrics(firstFace);
+      const nextMetrics = smoothMetrics(computeMetrics(firstFace));
       setMetrics(nextMetrics);
-      setActivePatterns(
+      setActivePatterns((prev) =>
         patterns.reduce((acc, pattern) => {
-          acc[pattern.id] = pattern.check(nextMetrics);
+          const wasActive = prev[pattern.id];
+          const shouldActivate = pattern.activate(nextMetrics);
+          const shouldDeactivate = pattern.deactivate?.(nextMetrics);
+
+          if (wasActive) {
+            acc[pattern.id] = shouldDeactivate ? !shouldDeactivate : shouldActivate;
+          } else {
+            acc[pattern.id] = shouldActivate;
+          }
           return acc;
         }, {})
       );
@@ -104,7 +134,7 @@ export default function App() {
       .catch((error) => setStatus(error.message));
 
     return () => tracker.stop();
-  }, [resetActive]);
+  }, [resetActive, smoothMetrics]);
 
   useEffect(() => {
     patterns.forEach((pattern, index) => {
