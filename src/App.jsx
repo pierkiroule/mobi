@@ -186,8 +186,21 @@ export default function App() {
 
       <section className="panel">
         <div className="video-wrapper">
-          <video ref={videoRef} className="preview" playsInline muted />
-          <canvas ref={canvasRef} className="overlay" width={480} height={360} />
+          <video 
+            ref={videoRef} 
+            className="preview" 
+            playsInline 
+            muted 
+            autoPlay
+            style={{ transform: "scaleX(-1)" }}
+          />
+          <canvas 
+            ref={canvasRef} 
+            className="overlay" 
+            width={480} 
+            height={360} 
+            style={{ transform: "scaleX(-1)" }}
+          />
         </div>
         <div className="metrics">
           <h3>Métriques temps réel</h3>
