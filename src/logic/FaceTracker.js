@@ -38,13 +38,15 @@ export default class FaceTracker {
     }
 
     // Attributs essentiels pour mobile iOS/Android
-    this.video.setAttribute("playsinline", "true");
-    this.video.setAttribute("autoplay", "true");
-    this.video.setAttribute("muted", "true");
+    this.video.setAttribute("playsinline", "");
+    this.video.setAttribute("webkit-playsinline", "");
+    this.video.setAttribute("autoplay", "");
+    this.video.setAttribute("muted", "");
     this.video.muted = true;
     this.video.playsInline = true;
-    this.video.width = VIDEO_WIDTH;
-    this.video.height = VIDEO_HEIGHT;
+    
+    // Ne pas définir width/height via attributs - laisse le CSS gérer
+    // Cela évite les conflits de dimensionnement sur mobile
 
     try {
       // Utiliser facingMode: "user" pour la caméra frontale sur mobile
@@ -72,14 +74,36 @@ export default class FaceTracker {
     
     // Attendre que le flux vidéo soit prêt avant de jouer
     await new Promise((resolve, reject) => {
+      const cleanup = () => {
+        this.video.onloadedmetadata = null;
+        this.video.onerror = null;
+      };
+      
       this.video.onloadedmetadata = () => {
+        cleanup();
+        // Force le recalcul des dimensions sur mobile
+        this.video.style.width = "100%";
+        this.video.style.height = "auto";
         this.video.play()
           .then(resolve)
-          .catch(reject);
+          .catch((err) => {
+            // Sur mobile, l'autoplay peut être bloqué sans interaction utilisateur
+            console.warn("Autoplay bloqué, tentative avec muted:", err);
+            this.video.muted = true;
+            this.video.play().then(resolve).catch(reject);
+          });
       };
-      this.video.onerror = () => reject(new Error("Erreur de chargement vidéo"));
+      
+      this.video.onerror = (e) => {
+        cleanup();
+        reject(new Error("Erreur de chargement vidéo: " + (e.message || "inconnue")));
+      };
+      
       // Timeout de sécurité
-      setTimeout(() => reject(new Error("Timeout: la vidéo n'a pas pu démarrer")), 10000);
+      setTimeout(() => {
+        cleanup();
+        reject(new Error("Timeout: la vidéo n'a pas pu démarrer"));
+      }, 10000);
     });
   }
 

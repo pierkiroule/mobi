@@ -189,7 +189,8 @@ export default function App() {
           <video 
             ref={videoRef} 
             className="preview" 
-            playsInline 
+            playsInline
+            webkit-playsinline=""
             muted 
             autoPlay
             style={{ transform: "scaleX(-1)" }}
