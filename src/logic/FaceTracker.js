@@ -1,36 +1,26 @@
-const FACE_MESH_URL =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js";
-const CAMERA_URL =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1627441595/camera_utils.js";
+const VIDEO_WIDTH = 480;
+const VIDEO_HEIGHT = 360;
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)));
-      if (existing.dataset.loaded === "true") resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
-      script.dataset.loaded = "true";
-      resolve();
-    };
-    script.onerror = () => reject(new Error(`Failed to load ${src}`));
-    document.head.appendChild(script);
-  });
+function ensureMl5() {
+  if (typeof window === "undefined") {
+    throw new Error("ml5 non disponible côté serveur");
+  }
+  if (!window.ml5) {
+    throw new Error("ml5 n'est pas chargé. Vérifiez les balises de script.");
+  }
 }
 
-function resolveFaceMeshClass() {
-  return window.FaceMesh || window.faceMesh?.FaceMesh || window.face_mesh?.FaceMesh;
-}
+function normalizeLandmarks(prediction, video) {
+  const width = video.videoWidth || VIDEO_WIDTH;
+  const height = video.videoHeight || VIDEO_HEIGHT;
+  const scaledMesh = prediction?.scaledMesh;
+  if (!scaledMesh) return null;
 
-function resolveCameraClass() {
-  return window.Camera || window.cameraUtils?.Camera || window.camera_utils?.Camera;
+  return scaledMesh.map(([x, y, z]) => ({
+    x: x / width,
+    y: y / height,
+    z: z / width,
+  }));
 }
 
 export default class FaceTracker {
@@ -38,62 +28,60 @@ export default class FaceTracker {
     this.video = videoElement;
     this.overlay = overlayCanvas;
     this.onResults = onResults;
-    this.camera = null;
     this.mesh = null;
+    this.stream = null;
   }
 
-  async ensureLibs() {
-    if (!resolveCameraClass()) {
-      await loadScript(CAMERA_URL);
+  async startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("getUserMedia non supporté par ce navigateur");
     }
-    if (!resolveFaceMeshClass()) {
-      await loadScript(FACE_MESH_URL);
-    }
-    const CameraClass = resolveCameraClass();
-    const FaceMeshClass = resolveFaceMeshClass();
-    if (!CameraClass || !FaceMeshClass) {
-      throw new Error("Impossible de charger MediaPipe FaceMesh");
-    }
-    return { CameraClass, FaceMeshClass };
+
+    this.video.setAttribute("playsinline", "true");
+    this.video.setAttribute("autoplay", "true");
+    this.video.width = VIDEO_WIDTH;
+    this.video.height = VIDEO_HEIGHT;
+
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+      audio: false,
+    });
+
+    this.video.srcObject = this.stream;
+    await this.video.play();
   }
 
   async start() {
-    const { CameraClass, FaceMeshClass } = await this.ensureLibs();
-    this.mesh = new FaceMeshClass({
-      locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+    ensureMl5();
+    await this.startCamera();
+
+    this.mesh = await window.ml5.facemesh(this.video, {
+      maxFaces: 1,
+      flipHorizontal: true,
     });
-    this.mesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
-    this.mesh.onResults((results) => {
+
+    this.mesh.on("predict", (predictions) => {
+      const first = predictions?.[0];
+      const landmarks = normalizeLandmarks(first, this.video);
+      const results = landmarks ? { multiFaceLandmarks: [landmarks] } : { multiFaceLandmarks: [] };
+
       this.draw(results);
       this.onResults?.(results);
     });
-
-    this.camera = new CameraClass(this.video, {
-      onFrame: async () => {
-        await this.mesh.send({ image: this.video });
-      },
-      width: 480,
-      height: 360,
-    });
-
-    await this.camera.start();
   }
 
   draw(results) {
-    if (!this.overlay || !results?.multiFaceLandmarks?.length) return;
+    if (!this.overlay) return;
     const ctx = this.overlay.getContext("2d");
     const { width, height } = this.overlay;
     ctx.clearRect(0, 0, width, height);
+
+    const landmarks = results?.multiFaceLandmarks?.[0];
+    if (!landmarks) return;
+
     ctx.strokeStyle = "rgba(0, 255, 170, 0.8)";
     ctx.lineWidth = 1.2;
 
-    const landmarks = results.multiFaceLandmarks[0];
     landmarks.forEach((point) => {
       ctx.beginPath();
       ctx.arc(point.x * width, point.y * height, 1.5, 0, Math.PI * 2);
@@ -103,7 +91,19 @@ export default class FaceTracker {
   }
 
   stop() {
-    this.camera?.stop();
-    this.mesh?.close?.();
+    if (this.mesh?.removeAllListeners) {
+      this.mesh.removeAllListeners("predict");
+    }
+    this.mesh = null;
+
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => track.stop());
+      this.stream = null;
+    }
+
+    if (this.overlay) {
+      const ctx = this.overlay.getContext("2d");
+      ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+    }
   }
 }
