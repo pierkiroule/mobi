@@ -37,18 +37,50 @@ export default class FaceTracker {
       throw new Error("getUserMedia non supporté par ce navigateur");
     }
 
+    // Attributs essentiels pour mobile iOS/Android
     this.video.setAttribute("playsinline", "true");
     this.video.setAttribute("autoplay", "true");
+    this.video.setAttribute("muted", "true");
+    this.video.muted = true;
+    this.video.playsInline = true;
     this.video.width = VIDEO_WIDTH;
     this.video.height = VIDEO_HEIGHT;
 
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-      audio: false,
-    });
+    try {
+      // Utiliser facingMode: "user" pour la caméra frontale sur mobile
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: VIDEO_WIDTH },
+          height: { ideal: VIDEO_HEIGHT },
+          facingMode: "user",
+        },
+        audio: false,
+      });
+    } catch (error) {
+      // Fallback sans facingMode si non supporté
+      console.warn("Caméra frontale non disponible, essai avec caméra par défaut:", error);
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: VIDEO_WIDTH },
+          height: { ideal: VIDEO_HEIGHT },
+        },
+        audio: false,
+      });
+    }
 
     this.video.srcObject = this.stream;
-    await this.video.play();
+    
+    // Attendre que le flux vidéo soit prêt avant de jouer
+    await new Promise((resolve, reject) => {
+      this.video.onloadedmetadata = () => {
+        this.video.play()
+          .then(resolve)
+          .catch(reject);
+      };
+      this.video.onerror = () => reject(new Error("Erreur de chargement vidéo"));
+      // Timeout de sécurité
+      setTimeout(() => reject(new Error("Timeout: la vidéo n'a pas pu démarrer")), 10000);
+    });
   }
 
   async start() {
