@@ -123,12 +123,37 @@ function App() {
     })
   }
 
+  const updateSlider = (key) => (event) => {
+    const value = parseFloat(event.target.value)
+    setFxControls((prev) => ({ ...prev, [key]: value }))
+  }
+
   return (
     <main className="app">
+      <Visualizer audioElement={audioRef} audioSrc={audioSrc} fxControls={fxControls} />
+
       <div className="card">
         <header className="card__header">
-          <h1>Lecteur audio</h1>
-          <p>Chargez votre fichier MP3 puis écoutez-le directement.</p>
+          <div>
+            <h1>Lecteur audio</h1>
+            <p>Chargez votre MP3 puis mélangez les FX en temps réel.</p>
+          </div>
+          <div className="mode-toggle" role="group" aria-label="Mode d'affichage">
+            <button
+              type="button"
+              className={!isMixerMode ? 'mode-toggle__button is-active' : 'mode-toggle__button'}
+              onClick={() => setIsMixerMode(false)}
+            >
+              Lecteur
+            </button>
+            <button
+              type="button"
+              className={isMixerMode ? 'mode-toggle__button is-active' : 'mode-toggle__button'}
+              onClick={() => setIsMixerMode(true)}
+            >
+              Mix FX
+            </button>
+          </div>
         </header>
 
         <div className="upload">
