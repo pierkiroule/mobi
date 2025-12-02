@@ -72,6 +72,15 @@ export default function App() {
     patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
   );
   const [samples, setSamples] = useState([null, null, null]);
+  const [backgroundTrack, setBackgroundTrack] = useState({
+    name: null,
+    url: null,
+  });
+  const [visualTracks, setVisualTracks] = useState([
+    [null, null, null],
+    [null, null, null],
+  ]);
+  const [activeVisuals, setActiveVisuals] = useState([null, null]);
 
   const resetActive = useMemo(
     () => patterns.reduce((acc, p) => ({ ...acc, [p.id]: false }), {}),
@@ -154,6 +163,45 @@ export default function App() {
       return next;
     });
     await audioRef.current.loadSample(slot, file);
+  };
+
+  const handleBackgroundAudio = (file) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setBackgroundTrack((prev) => {
+      if (prev.url) URL.revokeObjectURL(prev.url);
+      return { name: file.name, url };
+    });
+  };
+
+  const handleVisualSampleChange = (trackIndex, slotIndex, file) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const type = file.type.startsWith("video") ? "video" : "image";
+    const sample = { name: file.name, url, type };
+
+    setVisualTracks((prev) => {
+      const next = prev.map((track) => [...track]);
+      const previousSample = next[trackIndex][slotIndex];
+      if (previousSample?.url) URL.revokeObjectURL(previousSample.url);
+      next[trackIndex][slotIndex] = sample;
+      return next;
+    });
+
+    setActiveVisuals((prev) => {
+      const next = [...prev];
+      next[trackIndex] = sample;
+      return next;
+    });
+  };
+
+  const handleSelectVisual = (trackIndex, sample) => {
+    if (!sample) return;
+    setActiveVisuals((prev) => {
+      const next = [...prev];
+      next[trackIndex] = sample;
+      return next;
+    });
   };
 
   return (
@@ -318,6 +366,110 @@ export default function App() {
                   <p className="pattern-hint">Activez l'audio pour jouer les samples</p>
                 )}
               </article>
+            ))}
+          </div>
+        </section>
+
+        {/* Section VJing */}
+        <section className="vj-section">
+          <div className="vj-header">
+            <div>
+              <h2 className="section-title">VJing live</h2>
+              <p className="section-subtitle">
+                Importez un MP3 de fond et composez deux pistes visuelles avec 3 samples chacune.
+              </p>
+            </div>
+            <div className="audio-import">
+              <label className="sample-upload audio-loader">
+                <input
+                  type="file"
+                  accept="audio/mpeg,audio/mp3,audio/*"
+                  onChange={(e) => handleBackgroundAudio(e.target.files?.[0])}
+                />
+                <span className="upload-icon">{backgroundTrack.url ? "🎧" : "📂"}</span>
+                <span className="upload-text">
+                  {backgroundTrack.name || "Charger un MP3"}
+                </span>
+              </label>
+              {backgroundTrack.url && (
+                <audio
+                  className="background-audio"
+                  src={backgroundTrack.url}
+                  controls
+                  preload="metadata"
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="vj-stage">
+            {activeVisuals.map((visual, index) => (
+              <div key={index} className="vj-stage-layer">
+                <div className="vj-stage-label">{index === 0 ? "Piste A" : "Piste B"}</div>
+                {visual ? (
+                  visual.type === "video" ? (
+                    <video src={visual.url} controls loop muted playsInline />
+                  ) : (
+                    <img src={visual.url} alt={visual.name} />
+                  )
+                ) : (
+                  <div className="vj-stage-empty">Aucun visuel actif</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="vj-tracks">
+            {visualTracks.map((track, trackIndex) => (
+              <div key={trackIndex} className="vj-track">
+                <div className="vj-track-header">
+                  <div className="vj-track-title">
+                    <span className="track-dot" />
+                    {trackIndex === 0 ? "Piste A" : "Piste B"}
+                  </div>
+                  <p className="vj-track-subtitle">Ajoutez jusqu'à 3 visuels (image ou vidéo)</p>
+                </div>
+                <div className="vj-track-grid">
+                  {track.map((sample, slotIndex) => (
+                    <div
+                      key={slotIndex}
+                      className={`vj-sample-card ${
+                        activeVisuals[trackIndex]?.url === sample?.url ? "active" : ""
+                      }`}
+                      onClick={() => handleSelectVisual(trackIndex, sample)}
+                    >
+                      <label className="vj-sample-upload">
+                        <input
+                          type="file"
+                          accept="video/*,image/*"
+                          onChange={(e) =>
+                            handleVisualSampleChange(trackIndex, slotIndex, e.target.files?.[0])
+                          }
+                        />
+                        <div className="vj-sample-preview">
+                          {sample ? (
+                            sample.type === "video" ? (
+                              <video src={sample.url} muted loop playsInline />
+                            ) : (
+                              <img src={sample.url} alt={sample.name} />
+                            )
+                          ) : (
+                            <span className="upload-icon">➕</span>
+                          )}
+                        </div>
+                        <div className="vj-sample-meta">
+                          <span className="upload-text">
+                            {sample ? sample.name : "Importer un visuel"}
+                          </span>
+                          <span className="vj-sample-type">
+                            {sample ? (sample.type === "video" ? "Vidéo" : "Image") : "Vide"}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </section>
