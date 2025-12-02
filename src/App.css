@@ -84,6 +84,41 @@ body {
   color: #cbd5e1;
 }
 
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ghost-button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  padding: 0.55rem 0.9rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.ghost-button:hover {
+  border-color: rgba(56, 189, 248, 0.8);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.25);
+}
+
+.card__content {
+  transition: max-height 180ms ease, opacity 150ms ease, margin 150ms ease;
+}
+
+.card__content--hidden {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  margin: 0 -0.5rem;
+}
+
 .upload {
   background: rgba(255, 255, 255, 0.05);
   border: 1px dashed rgba(255, 255, 255, 0.3);
@@ -159,6 +194,26 @@ body {
   background: linear-gradient(120deg, rgba(56, 189, 248, 0.9), rgba(99, 102, 241, 0.9));
   color: #0b1224;
   box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35);
+}
+
+.card--collapsed {
+  width: min(520px, 92vw);
+  background: rgba(4, 7, 18, 0.6);
+  border-color: rgba(255, 255, 255, 0.05);
+  position: fixed;
+  right: 1.25rem;
+  top: 1.25rem;
+  z-index: 2;
+  box-shadow: 0 15px 60px rgba(0, 0, 0, 0.45);
+}
+
+.card--collapsed h1 {
+  font-size: 1.5rem;
+}
+
+.card--collapsed p {
+  color: #cbd5e1;
+  font-size: 0.95rem;
 }
 
 .mixer {
@@ -264,6 +319,16 @@ body {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .card__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ghost-button {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 .player--concealed {
@@ -285,20 +350,10 @@ body {
 }
 
 @media (max-width: 720px) {
-  .app {
-    padding: 2.25rem 1.2rem;
-  }
-
-  .card {
-    padding: 1.75rem 1.4rem;
-  }
-
-  .card__header h1 {
-    font-size: 1.8rem;
-  }
-
-  .card__header {
-    flex-direction: column;
-    align-items: flex-start;
+  .card--collapsed {
+    right: 0.75rem;
+    left: 0.75rem;
+    top: auto;
+    bottom: 0.85rem;
   }
 }
