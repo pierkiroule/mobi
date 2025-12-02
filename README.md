@@ -1,5 +1,8 @@
 # mobi
 
-## Mergeability status
+Clean Vite + React starter scaffold. Use it as a blank canvas for future UI work.
 
-The `work` branch currently only contains the stock Vite + React counter template (see `src/App.jsx`) after overwriting the previous multimedia application. Because this branch removes prior components such as `FaceMeshVisualizer`, `OrchestratorScreen`, and related hooks and logic, it conflicts with the mainline branch that still carries those files. GitHub marks the pull request as non-mergeable until the branch is rebased with main and the conflicting files are reconciled.
+## Getting started
+- Install dependencies: `npm install`
+- Run the dev server: `npm run dev`
+- Build for production: `npm run build`
