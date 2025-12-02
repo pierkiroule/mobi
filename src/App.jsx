@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Visualizer from './Visualizer'
 import './App.css'
 
 function App() {
   const [audioSrc, setAudioSrc] = useState('')
   const [fileName, setFileName] = useState('')
   const [objectUrl, setObjectUrl] = useState('')
+  const audioRef = useRef(null)
 
   useEffect(() => {
     return () => {
@@ -36,10 +38,12 @@ function App() {
 
   return (
     <main className="app">
+      <Visualizer audioElement={audioRef} audioSrc={audioSrc} />
+
       <div className="card">
         <header className="card__header">
           <h1>Lecteur audio</h1>
-          <p>Chargez votre fichier MP3 puis écoutez-le directement.</p>
+          <p>Chargez votre fichier MP3 puis laissez la visualisation réagir à votre musique.</p>
         </header>
 
         <div className="upload">
@@ -59,7 +63,13 @@ function App() {
         </div>
 
         <div className="player">
-          <audio controls src={audioSrc} className="player__audio" disabled={!audioSrc}>
+          <audio
+            controls
+            src={audioSrc}
+            className="player__audio"
+            disabled={!audioSrc}
+            ref={audioRef}
+          >
             Votre navigateur ne supporte pas la balise audio.
           </audio>
           {!audioSrc && <p className="player__placeholder">Ajoutez un fichier pour activer la lecture.</p>}
