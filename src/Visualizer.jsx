@@ -74,12 +74,17 @@ const createAnalyser = (audioElement) => {
   }
 }
 
-const Visualizer = ({ audioElement, audioSrc }) => {
+const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
   const containerRef = useRef(null)
   const rendererRef = useRef(null)
   const frameRef = useRef(0)
   const analyserRef = useRef(null)
   const basePositionsRef = useRef(null)
+  const controlsRef = useRef({ warp: 1.1, pulse: 1.1, colorShift: 0.55 })
+
+  useEffect(() => {
+    controlsRef.current = fxControls
+  }, [fxControls])
 
   useEffect(() => {
     const container = containerRef.current
@@ -132,13 +137,14 @@ const Visualizer = ({ audioElement, audioSrc }) => {
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate)
       const elapsed = clock.getElapsedTime()
+      const controls = controlsRef.current || { warp: 1.1, pulse: 1.1, colorShift: 0.55 }
 
       const analyserData = analyserRef.current
       if (analyserData) {
         analyserData.analyser.getByteFrequencyData(analyserData.dataArray)
         const sum = analyserData.dataArray.reduce((acc, value) => acc + value, 0)
         const energy = sum / analyserData.dataArray.length / 255
-        reactiveLevel = lerp(reactiveLevel, energy * 1.4, 0.08)
+        reactiveLevel = lerp(reactiveLevel, energy * (0.8 + controls.pulse * 0.7), 0.08)
       } else {
         reactiveLevel = lerp(reactiveLevel, 0, 0.05)
       }
@@ -146,25 +152,31 @@ const Visualizer = ({ audioElement, audioSrc }) => {
       const posArray = geometry.getAttribute('position').array
       const colorArray = geometry.getAttribute('color').array
       const basePositions = basePositionsRef.current
-      const sway = Math.sin(elapsed * 0.35) * 0.3
+      const warp = 0.6 + controls.warp * 0.7
+      const pulseIntensity = 0.45 + controls.pulse * 0.55
+      const colorBias = (controls.colorShift - 0.5) * 0.6
+      const sway = Math.sin(elapsed * 0.35 * warp) * 0.32
 
       for (let i = 0; i < posArray.length; i += 3) {
         const baseX = basePositions[i]
         const baseY = basePositions[i + 1]
 
         const ribbon =
-          Math.sin(baseX * 0.65 + elapsed * 0.9) * 0.18 +
-          Math.cos(baseY * 0.75 - elapsed * 1.1) * 0.14
-        const pulse = Math.sin((baseX + baseY) * 0.9 + elapsed * 2.2) * reactiveLevel * 0.9
-        const depth = ribbon + pulse + sway * 0.4
+          Math.sin(baseX * 0.65 * warp + elapsed * (0.7 + warp * 0.4)) * 0.2 * warp +
+          Math.cos(baseY * 0.75 * warp - elapsed * (0.8 + warp * 0.35)) * 0.16 * warp
+        const pulse = Math.sin((baseX + baseY) * 1.1 + elapsed * 2.4) * reactiveLevel * pulseIntensity
+        const depth = ribbon + pulse + sway * 0.45
 
-        posArray[i] = baseX * (1.0 + reactiveLevel * 0.15)
-        posArray[i + 1] = baseY * 0.96 + Math.sin(elapsed * 0.3 + baseX * 0.4) * 0.06
+        posArray[i] = baseX * (1.0 + reactiveLevel * 0.18 * warp)
+        posArray[i + 1] =
+          baseY * 0.94 + Math.sin(elapsed * 0.3 * warp + baseX * 0.45) * (0.05 + warp * 0.015)
         posArray[i + 2] = depth
 
         const altitude = THREE.MathUtils.clamp((depth + 1.4) / 3, 0, 1)
-        const warmth = 0.55 + reactiveLevel * 0.35 + Math.sin(elapsed * 0.12 + baseX * 0.1) * 0.05
-        color.setHSL(warmth, 0.65, 0.36 + altitude * 0.25)
+        const warmthBase = 0.52 + colorBias
+        const warmth =
+          warmthBase + reactiveLevel * (0.3 + controls.pulse * 0.2) + Math.sin(elapsed * 0.12 + baseX * 0.1) * 0.06
+        color.setHSL(THREE.MathUtils.clamp(warmth, 0, 1), 0.67, 0.35 + altitude * (0.18 + colorBias * 0.18))
 
         colorArray[i] = color.r
         colorArray[i + 1] = color.g
