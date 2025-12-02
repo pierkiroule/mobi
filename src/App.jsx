@@ -1,34 +1,71 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [audioSrc, setAudioSrc] = useState('')
+  const [fileName, setFileName] = useState('')
+  const [objectUrl, setObjectUrl] = useState('')
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+  }, [objectUrl])
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      setAudioSrc('')
+      setFileName('')
+      return
+    }
+
+    const newUrl = URL.createObjectURL(file)
+    setAudioSrc(newUrl)
+    setFileName(file.name)
+    setObjectUrl((currentUrl) => {
+      if (currentUrl) {
+        URL.revokeObjectURL(currentUrl)
+      }
+      return newUrl
+    })
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank" rel="noreferrer">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
+    <main className="app">
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
+        <header className="card__header">
+          <h1>Lecteur audio</h1>
+          <p>Chargez votre fichier MP3 puis écoutez-le directement.</p>
+        </header>
+
+        <div className="upload">
+          <label htmlFor="audio-upload" className="upload__label">
+            <span role="img" aria-hidden="true">⬆️</span> Importer un fichier MP3
+          </label>
+          <input
+            id="audio-upload"
+            type="file"
+            accept="audio/mpeg,audio/mp3,audio/*"
+            className="upload__input"
+            onChange={handleFileChange}
+          />
+          <p className="upload__filename">
+            {fileName ? `Fichier sélectionné : ${fileName}` : 'Aucun fichier sélectionné'}
+          </p>
+        </div>
+
+        <div className="player">
+          <audio controls src={audioSrc} className="player__audio" disabled={!audioSrc}>
+            Votre navigateur ne supporte pas la balise audio.
+          </audio>
+          {!audioSrc && <p className="player__placeholder">Ajoutez un fichier pour activer la lecture.</p>}
+        </div>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </main>
   )
 }
 
