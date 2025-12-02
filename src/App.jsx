@@ -141,6 +141,17 @@ function App() {
               Votre navigateur ne supporte pas la balise audio.
             </audio>
           </div>
+        <div className="player">
+          <audio
+            controls
+            src={audioSrc}
+            className="player__audio"
+            disabled={!audioSrc}
+            ref={audioRef}
+          >
+            Votre navigateur ne supporte pas la balise audio.
+          </audio>
+        </div>
 
           {isMixerMode && (
             <div className="mixer" aria-label="Réglages des FX audioreactifs">
