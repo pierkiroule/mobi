@@ -74,13 +74,15 @@ const createAnalyser = (audioElement) => {
   }
 }
 
-const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
+const Visualizer = ({ audioElement, audioSrc, fxControls, videoElements = [], activePad = 0 }) => {
   const containerRef = useRef(null)
   const rendererRef = useRef(null)
   const frameRef = useRef(0)
   const analyserRef = useRef(null)
   const basePositionsRef = useRef(null)
   const controlsRef = useRef({ warp: 1.1, pulse: 1.1, colorShift: 0.55 })
+  const videoTexturesRef = useRef([null, null, null])
+  const videoPlanesRef = useRef([])
 
   useEffect(() => {
     controlsRef.current = fxControls
@@ -130,6 +132,22 @@ const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
     coolLight.position.set(2.5, 2.5, 1.2)
     scene.add(ambientLight, warmLight, coolLight)
 
+    const videoGeometry = new THREE.PlaneGeometry(6, 6)
+    for (let i = 0; i < 3; i += 1) {
+      const mat = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        color: 0xffffff,
+      })
+      const mesh = new THREE.Mesh(videoGeometry, mat)
+      mesh.position.set(0, 0.75, -0.4)
+      mesh.rotation.x = -0.26
+      scene.add(mesh)
+      videoPlanesRef.current.push(mesh)
+    }
+
     const clock = new THREE.Clock()
     const color = new THREE.Color()
     let reactiveLevel = 0
@@ -152,9 +170,9 @@ const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
       const posArray = geometry.getAttribute('position').array
       const colorArray = geometry.getAttribute('color').array
       const basePositions = basePositionsRef.current
-      const warp = 0.6 + controls.warp * 0.7
+      const warp = 0.6 + controls.warp * 0.7 + activePad * 0.04
       const pulseIntensity = 0.45 + controls.pulse * 0.55
-      const colorBias = (controls.colorShift - 0.5) * 0.6
+      const colorBias = (controls.colorShift - 0.5) * (0.6 + activePad * 0.08)
       const sway = Math.sin(elapsed * 0.35 * warp) * 0.32
 
       for (let i = 0; i < posArray.length; i += 3) {
@@ -191,6 +209,28 @@ const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
       camera.position.y = 2 + reactiveLevel * 0.8
       camera.lookAt(0, 0.3, 0)
 
+      videoPlanesRef.current.forEach((mesh, index) => {
+        const material = mesh.material
+        const texture = videoTexturesRef.current[index]
+        const hasTexture = Boolean(texture)
+        const targetOpacity = hasTexture
+          ? index === activePad
+            ? 0.6 + reactiveLevel * 0.55
+            : 0.12 + reactiveLevel * 0.15
+          : 0
+        material.opacity = lerp(material.opacity, targetOpacity, 0.08)
+
+        if (texture) {
+          texture.needsUpdate = true
+          material.map = texture
+        }
+
+        const baseScale = 1.08 + index * 0.08
+        const swell = 0.25 + reactiveLevel * 0.6
+        mesh.scale.setScalar(baseScale + swell)
+        mesh.rotation.z = elapsed * 0.03 * (index + 1)
+      })
+
       renderer.render(scene, camera)
     }
 
@@ -211,6 +251,11 @@ const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
       renderer.dispose()
       geometry.dispose()
       material.dispose()
+      videoPlanesRef.current.forEach((mesh) => {
+        mesh.material.dispose()
+      })
+      videoGeometry.dispose()
+      videoPlanesRef.current = []
       container.removeChild(renderer.domElement)
       rendererRef.current = null
     }
@@ -233,6 +278,35 @@ const Visualizer = ({ audioElement, audioSrc, fxControls }) => {
       analyserRef.current = null
     }
   }, [audioElement, audioSrc])
+
+  useEffect(() => {
+    if (!rendererRef.current) return undefined
+
+    videoElements.forEach((element, index) => {
+      if (videoTexturesRef.current[index]) {
+        videoTexturesRef.current[index].dispose()
+        videoTexturesRef.current[index] = null
+      }
+
+      if (element) {
+        const texture = new THREE.VideoTexture(element)
+        texture.encoding = THREE.sRGBEncoding
+        texture.minFilter = THREE.LinearFilter
+        texture.magFilter = THREE.LinearFilter
+        texture.colorSpace = THREE.SRGBColorSpace
+        videoTexturesRef.current[index] = texture
+      }
+    })
+
+    return () => {
+      videoTexturesRef.current.forEach((texture, index) => {
+        if (texture) {
+          texture.dispose()
+          videoTexturesRef.current[index] = null
+        }
+      })
+    }
+  }, [videoElements])
 
   return <div className="visualizer" ref={containerRef} aria-hidden="true" />
 }
