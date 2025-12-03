@@ -8,7 +8,6 @@ function App() {
   const [audioSrc, setAudioSrc] = useState('')
   const [fileName, setFileName] = useState('')
   const [objectUrl, setObjectUrl] = useState('')
-  const [isMixerMode, setIsMixerMode] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [activePad, setActivePad] = useState(0)
   const [videoPads, setVideoPads] = useState([
@@ -150,121 +149,116 @@ function App() {
 
   return (
     <main className="app">
-      <div className="visualizer-shell">
-        <div className="visualizer-mask" aria-hidden="true" />
-        <Visualizer
-          audioElement={audioRef}
-          audioSrc={audioSrc}
-          fxControls={fxControls}
-          videoElements={[...videoRefs.current]}
-          activePad={activePad}
-        />
-      </div>
+      <header className="top-bar">
+        <div className="identity">
+          <p className="eyebrow">Orbe luminescente</p>
+          <h1>Session live ultra-light</h1>
+          <p>Importez votre MP3, lancez la scène audioreactive et mixez les pads comme sur Resolume.</p>
+        </div>
 
-      <div className="card">
-        <header className="card__header">
+        <div className="upload-panel">
           <div>
-            <p className="eyebrow">VJing audioreactif</p>
-            <h1>Orbe luminescente</h1>
-            <p>Chargez votre MP3, tapotez les pads vidéo et laissez le mix rayonner dans le cercle.</p>
+            <label htmlFor="audio-upload" className="upload__label">
+              <span role="img" aria-hidden="true">⬆️</span> Importer votre MP3
+            </label>
+            <input
+              id="audio-upload"
+              type="file"
+              accept="audio/mpeg,audio/mp3,audio/*"
+              className="upload__input"
+              onChange={handleFileChange}
+            />
+            <p className="upload__filename">
+              {fileName ? `Sélectionné : ${fileName}` : 'Aucun MP3 pour l’instant'}
+            </p>
           </div>
-          <div className="mode-toggle" role="group" aria-label="Mode d'affichage">
+
+          <div className="player-chip" aria-live="polite">
+            <p className="player-chip__label">Transport</p>
+            <p className="player-chip__hint">Play/Pause pour caler la scène</p>
             <button
               type="button"
-              className={!isMixerMode ? 'mode-toggle__button is-active' : 'mode-toggle__button'}
-              onClick={() => setIsMixerMode(false)}
+              className={isPlaying ? 'player-chip__button is-active' : 'player-chip__button'}
+              onClick={togglePlay}
+              disabled={!audioSrc}
             >
-              Lecteur
+              {isPlaying ? 'Pause' : 'Play'}
             </button>
-            <button
-              type="button"
-              className={isMixerMode ? 'mode-toggle__button is-active' : 'mode-toggle__button'}
-              onClick={() => setIsMixerMode(true)}
-            >
-              Mix FX
-            </button>
-          </div>
-        </header>
-
-        <div className="upload">
-          <div className="upload__row">
-            <div>
-              <label htmlFor="audio-upload" className="upload__label">
-                <span role="img" aria-hidden="true">⬆️</span> Importer votre MP3
-              </label>
-              <input
-                id="audio-upload"
-                type="file"
-                accept="audio/mpeg,audio/mp3,audio/*"
-                className="upload__input"
-                onChange={handleFileChange}
-              />
-              <p className="upload__filename">
-                {fileName ? `Sélectionné : ${fileName}` : 'Aucun MP3 pour l’instant'}
-              </p>
-            </div>
-
-            <div className="player-chip" aria-live="polite">
-              <p className="player-chip__label">Player masqué</p>
-              <p className="player-chip__hint">Appuyez pour lancer / mettre en pause</p>
-              <button
-                type="button"
-                className={isPlaying ? 'player-chip__button is-active' : 'player-chip__button'}
-                onClick={togglePlay}
-                disabled={!audioSrc}
-              >
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
-            </div>
           </div>
         </div>
+      </header>
 
-        <audio src={audioSrc} ref={audioRef} className="sr-only" aria-hidden />
+      <section className="visual-wrap" aria-label="Zone visuelle audioreactive">
+        <div className="visual-frame">
+          <div className="visualizer-mask" aria-hidden="true" />
+          <Visualizer
+            audioElement={audioRef}
+            audioSrc={audioSrc}
+            fxControls={fxControls}
+            videoElements={[...videoRefs.current]}
+            activePad={activePad}
+          />
+        </div>
+      </section>
 
-        <div className="pads" aria-label="Pads vidéo pour le mix">
-          {videoPads.map((pad, index) => {
-            const isActive = index === activePad
-            const hasVideo = Boolean(pad.fileName)
+      <audio src={audioSrc} ref={audioRef} className="sr-only" aria-hidden />
 
-            return (
-              <div key={pad.name} className={isActive ? 'pad is-active' : 'pad'}>
-                <div className="pad__top">
-                  <div>
-                    <p className="pad__eyebrow">{pad.name}</p>
-                    <p className="pad__title">{hasVideo ? pad.fileName : 'Vidéo à importer'}</p>
+      <section className="mixer-surface" aria-label="Surface de mix façon Resolume">
+        <div className="pads-panel">
+          <div className="panel-title">
+            <p className="eyebrow">Pads vidéo</p>
+            <p className="panel-hint">Glissez vos vidéos, puis tapez pour passer en live.</p>
+          </div>
+          <div className="pads-grid">
+            {videoPads.map((pad, index) => {
+              const isActive = index === activePad
+              const hasVideo = Boolean(pad.fileName)
+
+              return (
+                <div key={pad.name} className={isActive ? 'pad is-active' : 'pad'}>
+                  <div className="pad__top">
+                    <div>
+                      <p className="pad__eyebrow">{pad.name}</p>
+                      <p className="pad__title">{hasVideo ? pad.fileName : 'Vidéo à importer'}</p>
+                    </div>
+                    <span className="pad__dot" aria-hidden />
                   </div>
-                  <span className="pad__dot" aria-hidden />
-                </div>
 
-                <p className="pad__hint">Glissez une vidéo puis tapez pour mixer les FX.</p>
+                  <p className="pad__hint">Charger un clip puis déclencher pour activer.</p>
 
-                <div className="pad__actions">
-                  <label className="pad__upload" htmlFor={`pad-${index}-upload`}>
-                    Charger
-                    <input
-                      id={`pad-${index}-upload`}
-                      className="pad__upload-input"
-                      type="file"
-                      accept="video/*"
-                      onChange={handleVideoChange(index)}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="pad__trigger"
-                    onClick={() => activatePad(index)}
-                    disabled={!hasVideo}
-                  >
-                    {isActive ? 'En live' : 'Mixer'}
-                  </button>
+                  <div className="pad__actions">
+                    <label className="pad__upload" htmlFor={`pad-${index}-upload`}>
+                      Charger
+                      <input
+                        id={`pad-${index}-upload`}
+                        className="pad__upload-input"
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoChange(index)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="pad__trigger"
+                      onClick={() => activatePad(index)}
+                      disabled={!hasVideo}
+                    >
+                      {isActive ? 'En live' : 'Mixer'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
-        {isMixerMode && (
-          <div className="mixer" aria-label="Réglages des FX audioreactifs">
+        <div className="fx-panel">
+          <div className="panel-title">
+            <p className="eyebrow">FX audioreactifs</p>
+            <p className="panel-hint">Glissez les faders pour sculpter la vague.</p>
+          </div>
+
+          <div className="faders" aria-label="Réglages des FX audioreactifs">
             <div className="slider">
               <div className="slider__label">Déformation organique</div>
               <input
@@ -302,8 +296,8 @@ function App() {
               <div className="slider__hint">Glisse de l'ambre chaud vers les bleus polaires.</div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      </section>
     </main>
   )
 }
