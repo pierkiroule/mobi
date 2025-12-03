@@ -104,6 +104,11 @@ function App() {
     videoElement.muted = true
     videoElement.playsInline = true
     videoElement.crossOrigin = 'anonymous'
+    videoElement.preload = 'auto'
+    videoElement.addEventListener('loadeddata', () => {
+      videoElement.currentTime = 0
+      videoElement.play().catch(() => videoElement.pause())
+    })
     videoElement.play().catch(() => videoElement.pause())
 
     videoRefs.current[index] = videoElement
@@ -126,6 +131,11 @@ function App() {
 
   const activatePad = (index) => {
     setActivePad(index)
+    const selectedVideo = videoRefs.current[index]
+    if (selectedVideo) {
+      selectedVideo.currentTime = 0
+      selectedVideo.play().catch(() => selectedVideo.pause())
+    }
     setFxControls((prev) => ({
       warp: lerp(prev.warp, 1 + index * 0.28, 0.65),
       pulse: lerp(prev.pulse, 1.05 + index * 0.25, 0.6),

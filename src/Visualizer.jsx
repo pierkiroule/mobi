@@ -289,6 +289,8 @@ const Visualizer = ({ audioElement, audioSrc, fxControls, videoElements = [], ac
       }
 
       if (element) {
+        element.currentTime = 0
+        element.play().catch(() => element.pause())
         const texture = new THREE.VideoTexture(element)
         texture.encoding = THREE.sRGBEncoding
         texture.minFilter = THREE.LinearFilter
