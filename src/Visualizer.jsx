@@ -117,6 +117,8 @@ const Visualizer = ({ audioElement, audioSrc, fxControls, videoElements = [], ac
       size: 0.035,
       transparent: true,
       depthWrite: false,
+      depthTest: false,
+      opacity: 0.78,
       blending: THREE.AdditiveBlending,
       vertexColors: true,
     })
@@ -139,6 +141,7 @@ const Visualizer = ({ audioElement, audioSrc, fxControls, videoElements = [], ac
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        depthTest: false,
         color: 0xffffff,
       })
       const mesh = new THREE.Mesh(videoGeometry, mat)
@@ -223,6 +226,8 @@ const Visualizer = ({ audioElement, audioSrc, fxControls, videoElements = [], ac
         if (texture) {
           texture.needsUpdate = true
           material.map = texture
+          const tintWarmth = 0.52 + controls.colorShift * 0.35 + reactiveLevel * 0.18
+          material.color.setHSL(Math.min(1, tintWarmth), 0.45 + controls.colorShift * 0.4, 0.75)
         }
 
         const baseScale = 1.08 + index * 0.08
